@@ -14,7 +14,7 @@ class RouterTest extends TestCase
     public function testDispatchesRegisteredGetRoute(): void
     {
         $router = new Router();
-        $router->get('/api/v1/test', fn() => JsonResponse::ok(['ok' => true]));
+        $router->get('/api/v1/test', fn () => JsonResponse::ok(['ok' => true]));
 
         $response = $router->dispatch(Request::create('GET', '/api/v1/test'));
 
@@ -33,7 +33,7 @@ class RouterTest extends TestCase
     public function testReturns405ForWrongMethod(): void
     {
         $router = new Router();
-        $router->get('/api/v1/test', fn() => JsonResponse::ok([]));
+        $router->get('/api/v1/test', fn () => JsonResponse::ok([]));
 
         $response = $router->dispatch(Request::create('POST', '/api/v1/test'));
 

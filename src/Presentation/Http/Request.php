@@ -8,9 +8,15 @@ final class Request
 {
     public readonly string $method;
     public readonly string $uri;
+    /** @var array<string, mixed> */
     public readonly array $query;
+    /** @var array<string, mixed> */
     public readonly array $body;
 
+    /**
+     * @param array<string, mixed> $query
+     * @param array<string, mixed> $body
+     */
     private function __construct(
         string $method,
         string $uri,
@@ -23,6 +29,7 @@ final class Request
         $this->body = $body;
     }
 
+    /** @param array<string, mixed> $body */
     public static function create(string $method, string $uri, array $body = []): self
     {
         $parts = parse_url($uri);
@@ -32,6 +39,8 @@ final class Request
         if (isset($parts['query'])) {
             parse_str($parts['query'], $query);
         }
+
+        /** @var array<string, mixed> $query */
 
         return new self($method, $path, $query, $body);
     }
