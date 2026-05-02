@@ -90,4 +90,22 @@ final class Hotel
     {
         $this->status = HotelStatus::Suspended;
     }
+
+    public static function reconstitute(
+        HotelId $id,
+        HotelName $name,
+        string $description,
+        Address $address,
+        GeoPoint $location,
+        StarRating $starRating,
+        UserId $managerId,
+        HotelStatus $status,
+        \DateTimeImmutable $createdAt,
+    ): self {
+        $hotel            = new self($id, $name, $description, $address, $location, $starRating, $managerId);
+        $hotel->status    = $status;
+        $hotel->createdAt = $createdAt;
+
+        return $hotel;
+    }
 }

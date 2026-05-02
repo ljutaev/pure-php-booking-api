@@ -81,4 +81,19 @@ final class Room
     {
         $this->status = RoomStatus::Available;
     }
+
+    public static function reconstitute(
+        RoomId $id,
+        HotelId $hotelId,
+        RoomType $type,
+        RoomNumber $number,
+        Capacity $capacity,
+        Money $pricePerNight,
+        RoomStatus $status,
+    ): self {
+        $room         = new self($id, $hotelId, $type, $number, $capacity, $pricePerNight);
+        $room->status = $status;
+
+        return $room;
+    }
 }
