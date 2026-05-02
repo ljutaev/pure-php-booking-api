@@ -53,4 +53,52 @@ class RouterTest extends TestCase
 
         self::assertInstanceOf(Request::class, $captured);
     }
+
+    public function testDispatchesRouteWithSinglePathParam(): void
+    {
+        $router = new Router();
+        $router->get('/api/v1/hotels/{id}', fn (Request $req) => JsonResponse::ok(['id' => $req->pathParams['id']]));
+
+        $response = $router->dispatch(Request::create('GET', '/api/v1/hotels/abc-123'));
+
+        self::assertSame(200, $response->statusCode);
+        self::assertSame(['id' => 'abc-123'], $response->data);
+    }
+
+    public function testDispatchesRouteWithMultiplePathParams(): void
+    {
+        $router = new Router();
+        $router->get('/api/v1/hotels/{hotelId}/rooms/{roomId}', function (Request $req): JsonResponse {
+            return JsonResponse::ok([
+                'hotelId' => $req->pathParams['hotelId'],
+                'roomId'  => $req->pathParams['roomId'],
+            ]);
+        });
+
+        $response = $router->dispatch(Request::create('GET', '/api/v1/hotels/hotel-1/rooms/room-2'));
+
+        self::assertSame(200, $response->statusCode);
+        self::assertSame(['hotelId' => 'hotel-1', 'roomId' => 'room-2'], $response->data);
+    }
+
+    public function testPathParamRouteReturns404WhenNoMatch(): void
+    {
+        $router = new Router();
+        $router->get('/api/v1/hotels/{id}', fn () => JsonResponse::ok([]));
+
+        $response = $router->dispatch(Request::create('GET', '/api/v1/rooms/123'));
+
+        self::assertSame(404, $response->statusCode);
+    }
+
+    public function testExactRouteHasPrecedenceOverParametrized(): void
+    {
+        $router = new Router();
+        $router->get('/api/v1/hotels/{id}', fn () => JsonResponse::ok(['route' => 'param']));
+        $router->get('/api/v1/hotels/featured', fn () => JsonResponse::ok(['route' => 'exact']));
+
+        $response = $router->dispatch(Request::create('GET', '/api/v1/hotels/featured'));
+
+        self::assertSame(['route' => 'exact'], $response->data);
+    }
 }

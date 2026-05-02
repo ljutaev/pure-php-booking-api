@@ -12,21 +12,32 @@ final class Request
     public readonly array $query;
     /** @var array<string, mixed> */
     public readonly array $body;
+    /** @var array<string, string> */
+    public readonly array $pathParams;
 
     /**
-     * @param array<string, mixed> $query
-     * @param array<string, mixed> $body
+     * @param array<string, mixed>  $query
+     * @param array<string, mixed>  $body
+     * @param array<string, string> $pathParams
      */
     private function __construct(
         string $method,
         string $uri,
         array $query = [],
         array $body = [],
+        array $pathParams = [],
     ) {
         $this->method = strtoupper($method);
         $this->uri = $uri;
         $this->query = $query;
         $this->body = $body;
+        $this->pathParams = $pathParams;
+    }
+
+    /** @param array<string, string> $params */
+    public function withPathParams(array $params): self
+    {
+        return new self($this->method, $this->uri, $this->query, $this->body, $params);
     }
 
     /** @param array<string, mixed> $body */
