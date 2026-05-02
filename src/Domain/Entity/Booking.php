@@ -119,4 +119,25 @@ final class Booking
     {
         $this->paymentId = $paymentId;
     }
+
+    public static function reconstitute(
+        BookingId $id,
+        UserId $userId,
+        RoomId $roomId,
+        HotelId $hotelId,
+        DateRange $dateRange,
+        GuestCount $guests,
+        Money $totalPrice,
+        ?string $specialRequests,
+        BookingStatus $status,
+        ?PaymentId $paymentId,
+        \DateTimeImmutable $createdAt,
+    ): self {
+        $booking            = new self($id, $userId, $roomId, $hotelId, $dateRange, $guests, $totalPrice, $specialRequests);
+        $booking->status    = $status;
+        $booking->paymentId = $paymentId;
+        $booking->createdAt = $createdAt;
+
+        return $booking;
+    }
 }

@@ -34,7 +34,7 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: hotel_booking_test
+          POSTGRES_DB: hotel_booking
           POSTGRES_USER: hotel_user
           POSTGRES_PASSWORD: secret
         ports:
@@ -65,12 +65,21 @@ jobs:
       - name: Install dependencies
         run: composer install --no-progress --prefer-dist --no-interaction
 
+      - name: Run migrations
+        run: php bin/migrate.php
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: hotel_booking
+          DB_USER: hotel_user
+          DB_PASSWORD: secret
+
       - name: Run tests
         run: vendor/bin/phpunit
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 5432
-          DB_NAME: hotel_booking_test
+          DB_NAME: hotel_booking
           DB_USER: hotel_user
           DB_PASSWORD: secret
           REDIS_HOST: 127.0.0.1

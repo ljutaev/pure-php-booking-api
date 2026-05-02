@@ -39,6 +39,22 @@ final class JsonResponse
         return new self(405, ['error' => ['code' => 'METHOD_NOT_ALLOWED', 'message' => 'Method not allowed']]);
     }
 
+    /** @param array<string, string> $errors */
+    public static function unprocessableEntity(array $errors): self
+    {
+        return new self(422, ['error' => ['code' => 'VALIDATION_ERROR', 'fields' => $errors]]);
+    }
+
+    public static function conflict(string $message): self
+    {
+        return new self(409, ['error' => ['code' => 'CONFLICT', 'message' => $message]]);
+    }
+
+    public static function internalError(string $message = 'Internal server error'): self
+    {
+        return new self(500, ['error' => ['code' => 'INTERNAL_ERROR', 'message' => $message]]);
+    }
+
     public function send(): void
     {
         http_response_code($this->statusCode);
