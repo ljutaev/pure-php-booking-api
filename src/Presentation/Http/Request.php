@@ -44,7 +44,7 @@ final class Request
     public static function create(string $method, string $uri, array $body = []): self
     {
         $parts = parse_url($uri);
-        $path = $parts['path'] ?? $uri;
+        $path = urldecode($parts['path'] ?? $uri);
         $query = [];
 
         if (isset($parts['query'])) {

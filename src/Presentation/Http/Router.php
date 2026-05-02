@@ -76,7 +76,7 @@ final class Router
                 if ($method === $request->method) {
                     array_shift($m);
                     /** @var array<string, string> $pathParams */
-                    $pathParams = array_combine($entry['params'], $m);
+                    $pathParams = array_combine($entry['params'], array_map('urldecode', $m));
 
                     return ($entry['handler'])($request->withPathParams($pathParams));
                 }
