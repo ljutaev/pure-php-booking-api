@@ -45,6 +45,11 @@ final class JsonResponse
         return new self(422, ['error' => ['code' => 'VALIDATION_ERROR', 'fields' => $errors]]);
     }
 
+    public static function noContent(): self
+    {
+        return new self(204, []);
+    }
+
     public static function unauthorized(string $message = 'Unauthorized'): self
     {
         return new self(401, ['error' => ['code' => 'UNAUTHORIZED', 'message' => $message]]);
