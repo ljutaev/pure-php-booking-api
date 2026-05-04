@@ -45,6 +45,16 @@ final class JsonResponse
         return new self(422, ['error' => ['code' => 'VALIDATION_ERROR', 'fields' => $errors]]);
     }
 
+    public static function unauthorized(string $message = 'Unauthorized'): self
+    {
+        return new self(401, ['error' => ['code' => 'UNAUTHORIZED', 'message' => $message]]);
+    }
+
+    public static function forbidden(string $message = 'Forbidden'): self
+    {
+        return new self(403, ['error' => ['code' => 'FORBIDDEN', 'message' => $message]]);
+    }
+
     public static function conflict(string $message): self
     {
         return new self(409, ['error' => ['code' => 'CONFLICT', 'message' => $message]]);
