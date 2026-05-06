@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 use App\Application\Auth\TokenServiceInterface;
 use App\Application\Bus\CommandBus;
+use App\Application\Bus\QueryBus;
+use App\Application\Query\SearchHotels\HotelSearchRepositoryInterface;
+use App\Application\Query\SearchHotels\SearchHotelsHandler;
+use App\Application\Query\SearchHotels\SearchHotelsQuery;
+use App\Infrastructure\Repository\Pdo\PdoHotelSearchRepository;
 use App\Application\Command\BookRoom\BookRoomCommand;
 use App\Application\Command\BookRoom\BookRoomHandler;
 use App\Application\Command\CreateHotel\CreateHotelCommand;
@@ -103,6 +108,21 @@ $container->singleton(
     fn (Container $c) => new PdoBookingRepository($c->make(\PDO::class)),
 );
 
+$container->singleton(
+    HotelSearchRepositoryInterface::class,
+    fn (Container $c) => new PdoHotelSearchRepository($c->make(\PDO::class)),
+);
+
+$container->singleton(QueryBus::class, function (Container $c): QueryBus {
+    $bus = new QueryBus();
+    $bus->register(
+        SearchHotelsQuery::class,
+        new SearchHotelsHandler($c->make(HotelSearchRepositoryInterface::class)),
+    );
+
+    return $bus;
+});
+
 $container->singleton(CommandBus::class, function (Container $c): CommandBus {
     $bus = new CommandBus();
     $bus->register(
@@ -153,6 +173,7 @@ $container->singleton(
     fn (Container $c) => new HotelController(
         $c->make(CommandBus::class),
         $c->make(HotelRepositoryInterface::class),
+        $c->make(QueryBus::class),
     ),
 );
 
@@ -183,6 +204,7 @@ $router->post('/api/v1/auth/login', fn (Request $req) => $container->make(AuthCo
 $router->post('/api/v1/auth/refresh', fn (Request $req) => $container->make(AuthController::class)->refresh($req));
 $router->post('/api/v1/auth/logout', fn (Request $req) => $container->make(AuthController::class)->logout($req));
 
+$router->get('/api/v1/hotels', fn (Request $req) => $container->make(HotelController::class)->search($req));
 $router->post('/api/v1/hotels', fn (Request $req) => $container->make(HotelController::class)->create($req));
 $router->get('/api/v1/hotels/{id}', fn (Request $req) => $container->make(HotelController::class)->findById($req));
 $router->post('/api/v1/bookings', fn (Request $req) => $container->make(BookingController::class)->create($req));

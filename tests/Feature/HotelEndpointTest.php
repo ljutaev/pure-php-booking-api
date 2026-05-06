@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Application\Bus\CommandBus;
+use App\Application\Bus\QueryBus;
 use App\Application\Command\CreateHotel\CreateHotelCommand;
 use App\Application\Command\CreateHotel\CreateHotelHandler;
 use App\Domain\ValueObject\UserId;
 use App\Infrastructure\Repository\Pdo\PdoHotelRepository;
+use App\Infrastructure\Repository\Pdo\PdoHotelSearchRepository;
+use App\Application\Query\SearchHotels\SearchHotelsQuery;
+use App\Application\Query\SearchHotels\SearchHotelsHandler;
 use App\Presentation\Controller\HotelController;
 use App\Presentation\Http\Request;
 use App\Presentation\Http\Router;
@@ -22,14 +26,19 @@ final class HotelEndpointTest extends IntegrationTestCase
     {
         parent::setUp();
 
-        $hotelRepo = new PdoHotelRepository($this->pdo);
+        $hotelRepo  = new PdoHotelRepository($this->pdo);
+        $searchRepo = new PdoHotelSearchRepository($this->pdo);
 
         $bus = new CommandBus();
         $bus->register(CreateHotelCommand::class, new CreateHotelHandler($hotelRepo));
 
-        $controller = new HotelController($bus, $hotelRepo);
+        $queryBus = new QueryBus();
+        $queryBus->register(SearchHotelsQuery::class, new SearchHotelsHandler($searchRepo));
+
+        $controller = new HotelController($bus, $hotelRepo, $queryBus);
 
         $this->router = new Router();
+        $this->router->get('/api/v1/hotels', [$controller, 'search']);
         $this->router->post('/api/v1/hotels', [$controller, 'create']);
         $this->router->get('/api/v1/hotels/{id}', [$controller, 'findById']);
     }

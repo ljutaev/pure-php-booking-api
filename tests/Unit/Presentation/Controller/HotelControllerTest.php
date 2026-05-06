@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Presentation\Controller;
 
 use App\Application\Bus\CommandBus;
+use App\Application\Bus\QueryBus;
 use App\Application\Command\CreateHotel\CreateHotelCommand;
 use App\Domain\Entity\Hotel;
 use App\Domain\Exception\EntityNotFoundException;
@@ -30,7 +31,7 @@ final class HotelControllerTest extends TestCase
 
         $hotels = $this->createMock(HotelRepositoryInterface::class);
 
-        $this->controller = new HotelController($this->bus, $hotels);
+        $this->controller = new HotelController($this->bus, $hotels, new QueryBus());
     }
 
     public function testCreateReturns422WhenRequiredFieldMissing(): void
@@ -72,7 +73,7 @@ final class HotelControllerTest extends TestCase
         $hotels = $this->createMock(HotelRepositoryInterface::class);
         $hotels->method('findById')->willThrowException(new EntityNotFoundException('Not found'));
 
-        $controller = new HotelController($this->bus, $hotels);
+        $controller = new HotelController($this->bus, $hotels, new QueryBus());
         $request    = Request::create('GET', '/api/v1/hotels/nonexistent')
             ->withPathParams(['id' => HotelId::generate()->value]);
 
@@ -87,7 +88,7 @@ final class HotelControllerTest extends TestCase
         $hotels = $this->createMock(HotelRepositoryInterface::class);
         $hotels->method('findById')->willReturn($hotel);
 
-        $controller = new HotelController($this->bus, $hotels);
+        $controller = new HotelController($this->bus, $hotels, new QueryBus());
         $request    = Request::create('GET', '/api/v1/hotels/' . $hotel->getId()->value)
             ->withPathParams(['id' => $hotel->getId()->value]);
 
