@@ -5,10 +5,16 @@ declare(strict_types=1);
 use App\Application\Auth\TokenServiceInterface;
 use App\Application\Bus\CommandBus;
 use App\Application\Bus\QueryBus;
+use App\Application\Port\BookingLockInterface;
+use App\Application\Port\RateLimiterInterface;
 use App\Application\Query\SearchHotels\HotelSearchRepositoryInterface;
 use App\Application\Query\SearchHotels\SearchHotelsHandler;
 use App\Application\Query\SearchHotels\SearchHotelsQuery;
+use App\Infrastructure\Lock\RedisBookingLock;
+use App\Infrastructure\RateLimit\RedisRateLimiter;
 use App\Infrastructure\Repository\Pdo\PdoHotelSearchRepository;
+use App\Infrastructure\Repository\Redis\RedisHotelRepository;
+use App\Infrastructure\Repository\Redis\RedisHotelSearchRepository;
 use App\Application\Command\BookRoom\BookRoomCommand;
 use App\Application\Command\BookRoom\BookRoomHandler;
 use App\Application\Command\CreateHotel\CreateHotelCommand;
@@ -95,7 +101,10 @@ $container->singleton(
 
 $container->singleton(
     HotelRepositoryInterface::class,
-    fn (Container $c) => new PdoHotelRepository($c->make(\PDO::class)),
+    fn (Container $c) => new RedisHotelRepository(
+        new PdoHotelRepository($c->make(\PDO::class)),
+        $c->make(\Redis::class),
+    ),
 );
 
 $container->singleton(
@@ -110,7 +119,24 @@ $container->singleton(
 
 $container->singleton(
     HotelSearchRepositoryInterface::class,
-    fn (Container $c) => new PdoHotelSearchRepository($c->make(\PDO::class)),
+    fn (Container $c) => new RedisHotelSearchRepository(
+        new PdoHotelSearchRepository($c->make(\PDO::class)),
+        $c->make(\Redis::class),
+    ),
+);
+
+$container->singleton(
+    BookingLockInterface::class,
+    fn (Container $c) => new RedisBookingLock($c->make(\Redis::class)),
+);
+
+$container->singleton(
+    RateLimiterInterface::class,
+    fn (Container $c) => new RedisRateLimiter(
+        $c->make(\Redis::class),
+        maxRequests: (int) (getenv('RATE_LIMIT_REQUESTS') ?: 60),
+        windowSeconds: (int) (getenv('RATE_LIMIT_WINDOW') ?: 60),
+    ),
 );
 
 $container->singleton(QueryBus::class, function (Container $c): QueryBus {
@@ -134,6 +160,7 @@ $container->singleton(CommandBus::class, function (Container $c): CommandBus {
         new BookRoomHandler(
             $c->make(RoomRepositoryInterface::class),
             $c->make(BookingRepositoryInterface::class),
+            $c->make(BookingLockInterface::class),
         ),
     );
     $bus->register(
