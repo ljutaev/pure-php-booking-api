@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 abstract class IntegrationTestCase extends TestCase
 {
     protected \PDO $pdo;
+    protected \Redis $redis;
 
     protected function setUp(): void
     {
@@ -30,12 +31,20 @@ abstract class IntegrationTestCase extends TestCase
             ],
         );
 
+        $redisHost = (string) (getenv('REDIS_HOST') ?: 'redis');
+        $redisPort = (int) (getenv('REDIS_PORT') ?: 6379);
+        $this->redis = new \Redis();
+        $this->redis->connect($redisHost, $redisPort);
+        $this->redis->select(1); // DB 1 for tests
+
         $this->runMigrations();
         $this->pdo->beginTransaction();
     }
 
     protected function tearDown(): void
     {
+        $this->redis->flushDb();
+
         if ($this->pdo->inTransaction()) {
             $this->pdo->rollBack();
         }

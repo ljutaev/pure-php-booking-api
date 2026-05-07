@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Application\Bus\CommandBus;
+use App\Application\Bus\QueryBus;
 use App\Application\Command\CreateHotel\CreateHotelCommand;
 use App\Application\Command\CreateHotel\CreateHotelHandler;
 use App\Domain\ValueObject\UserId;
 use App\Infrastructure\Repository\Pdo\PdoHotelRepository;
+use App\Infrastructure\Repository\Pdo\PdoHotelSearchRepository;
+use App\Application\Query\SearchHotels\SearchHotelsQuery;
+use App\Application\Query\SearchHotels\SearchHotelsHandler;
 use App\Presentation\Controller\HotelController;
 use App\Presentation\Http\Request;
 use App\Presentation\Http\Router;
@@ -22,14 +26,19 @@ final class HotelEndpointTest extends IntegrationTestCase
     {
         parent::setUp();
 
-        $hotelRepo = new PdoHotelRepository($this->pdo);
+        $hotelRepo  = new PdoHotelRepository($this->pdo);
+        $searchRepo = new PdoHotelSearchRepository($this->pdo);
 
         $bus = new CommandBus();
         $bus->register(CreateHotelCommand::class, new CreateHotelHandler($hotelRepo));
 
-        $controller = new HotelController($bus, $hotelRepo);
+        $queryBus = new QueryBus();
+        $queryBus->register(SearchHotelsQuery::class, new SearchHotelsHandler($searchRepo));
+
+        $controller = new HotelController($bus, $hotelRepo, $queryBus);
 
         $this->router = new Router();
+        $this->router->get('/api/v1/hotels', [$controller, 'search']);
         $this->router->post('/api/v1/hotels', [$controller, 'create']);
         $this->router->get('/api/v1/hotels/{id}', [$controller, 'findById']);
     }
@@ -81,6 +90,78 @@ final class HotelEndpointTest extends IntegrationTestCase
         );
 
         $this->assertSame(404, $response->statusCode);
+    }
+
+    public function testSearchReturns200WithDataAndMetaShape(): void
+    {
+        $this->router->dispatch(Request::create('POST', '/api/v1/hotels', $this->validPayload()));
+
+        $response = $this->router->dispatch(Request::create('GET', '/api/v1/hotels'));
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertArrayHasKey('data', $response->data);
+        $this->assertArrayHasKey('meta', $response->data);
+        $this->assertArrayHasKey('total', $response->data['meta']);
+        $this->assertArrayHasKey('page', $response->data['meta']);
+        $this->assertArrayHasKey('per_page', $response->data['meta']);
+    }
+
+    public function testSearchIncludesCreatedHotelInResults(): void
+    {
+        $this->router->dispatch(Request::create('POST', '/api/v1/hotels', $this->validPayload()));
+
+        $response = $this->router->dispatch(Request::create('GET', '/api/v1/hotels'));
+
+        $this->assertSame(200, $response->statusCode);
+        $names = array_column($response->data['data'], 'name');
+        $this->assertContains('Grand Hotel', $names);
+    }
+
+    public function testSearchFiltersbyMinStarRating(): void
+    {
+        $low  = $this->validPayload();
+        $low['name']  = 'Budget Inn';
+        $low['stars'] = 2;
+        $this->router->dispatch(Request::create('POST', '/api/v1/hotels', $low));
+
+        $high  = $this->validPayload();
+        $high['name']  = 'Luxury Palace';
+        $high['stars'] = 5;
+        $this->router->dispatch(Request::create('POST', '/api/v1/hotels', $high));
+
+        $response = $this->router->dispatch(Request::create('GET', '/api/v1/hotels?stars=4'));
+
+        $names = array_column($response->data['data'], 'name');
+        $this->assertContains('Luxury Palace', $names);
+        $this->assertNotContains('Budget Inn', $names);
+    }
+
+    public function testSearchPaginatesResults(): void
+    {
+        $this->router->dispatch(Request::create('POST', '/api/v1/hotels', array_merge($this->validPayload(), ['name' => 'Page Hotel A'])));
+        $this->router->dispatch(Request::create('POST', '/api/v1/hotels', array_merge($this->validPayload(), ['name' => 'Page Hotel B'])));
+        $this->router->dispatch(Request::create('POST', '/api/v1/hotels', array_merge($this->validPayload(), ['name' => 'Page Hotel C'])));
+
+        $page1 = $this->router->dispatch(Request::create('GET', '/api/v1/hotels?per_page=2&page=1'));
+        $page2 = $this->router->dispatch(Request::create('GET', '/api/v1/hotels?per_page=2&page=2'));
+
+        $this->assertSame(200, $page1->statusCode);
+        $this->assertCount(2, $page1->data['data']);
+        $this->assertSame(1, $page1->data['meta']['page']);
+        $this->assertSame(2, $page2->data['meta']['page']);
+        $this->assertGreaterThanOrEqual(1, count($page2->data['data']));
+    }
+
+    public function testSearchItemHasHateoasLinks(): void
+    {
+        $this->router->dispatch(Request::create('POST', '/api/v1/hotels', $this->validPayload()));
+
+        $response = $this->router->dispatch(Request::create('GET', '/api/v1/hotels'));
+
+        $this->assertNotEmpty($response->data['data']);
+        $first = $response->data['data'][0];
+        $this->assertArrayHasKey('_links', $first);
+        $this->assertStringContainsString('/api/v1/hotels/', $first['_links']['self']['href']);
     }
 
     /** @return array<string, mixed> */

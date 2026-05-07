@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace App\Presentation\Controller;
 
 use App\Application\Bus\CommandBus;
+use App\Application\Bus\QueryBus;
 use App\Application\Command\CreateHotel\CreateHotelCommand;
+use App\Application\Query\SearchHotels\HotelListItem;
+use App\Application\Query\SearchHotels\SearchHotelsQuery;
+use App\Application\Query\SearchHotels\SearchHotelsResult;
+use App\Application\Search\HotelSearchCriteria;
 use App\Domain\Exception\EntityNotFoundException;
 use App\Domain\Repository\HotelRepositoryInterface;
 use App\Domain\ValueObject\HotelId;
@@ -18,7 +23,59 @@ final class HotelController
     public function __construct(
         private readonly CommandBus $bus,
         private readonly HotelRepositoryInterface $hotels,
+        private readonly QueryBus $queryBus,
     ) {
+    }
+
+    public function search(Request $request): JsonResponse
+    {
+        $q = $request->query;
+
+        $criteria = new HotelSearchCriteria(
+            latitude:  isset($q['lat'])        ? (float) $q['lat']        : null,
+            longitude: isset($q['lon'])        ? (float) $q['lon']        : null,
+            radiusKm:  isset($q['radius'])     ? (float) $q['radius']     : null,
+            checkIn:   isset($q['check_in'])   ? (string) $q['check_in']  : null,
+            checkOut:  isset($q['check_out'])  ? (string) $q['check_out'] : null,
+            priceMin:  isset($q['price_min'])  ? (float) $q['price_min']  : null,
+            priceMax:  isset($q['price_max'])  ? (float) $q['price_max']  : null,
+            stars:     isset($q['stars'])      ? (int) $q['stars']        : null,
+            page:      isset($q['page'])       ? max(1, (int) $q['page']) : 1,
+            perPage:   isset($q['per_page'])   ? min(100, max(1, (int) $q['per_page'])) : 20,
+        );
+
+        /** @var SearchHotelsResult $result */
+        $result = $this->queryBus->dispatch(new SearchHotelsQuery($criteria));
+
+        return JsonResponse::ok([
+            'data' => array_map($this->serializeItem(...), $result->items),
+            'meta' => [
+                'total'    => $result->total,
+                'page'     => $result->page,
+                'per_page' => $result->perPage,
+            ],
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function serializeItem(HotelListItem $item): array
+    {
+        return [
+            'id'      => $item->id,
+            'name'    => $item->name,
+            'city'    => $item->city,
+            'country' => $item->country,
+            'location' => [
+                'latitude'  => $item->latitude,
+                'longitude' => $item->longitude,
+            ],
+            'stars'              => $item->stars,
+            'distance_km'        => $item->distanceKm,
+            'min_price_per_night' => $item->minPricePerNight,
+            '_links' => [
+                'self' => ['href' => "/api/v1/hotels/{$item->id}"],
+            ],
+        ];
     }
 
     public function create(Request $request): JsonResponse

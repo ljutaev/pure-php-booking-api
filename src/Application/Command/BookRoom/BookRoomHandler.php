@@ -6,6 +6,7 @@ namespace App\Application\Command\BookRoom;
 
 use App\Application\Bus\CommandHandlerInterface;
 use App\Application\Bus\CommandInterface;
+use App\Application\Port\BookingLockInterface;
 use App\Domain\Entity\Booking;
 use App\Domain\Exception\BusinessRuleViolationException;
 use App\Domain\Exception\RoomNotAvailableException;
@@ -23,6 +24,7 @@ final class BookRoomHandler implements CommandHandlerInterface
     public function __construct(
         private readonly RoomRepositoryInterface $rooms,
         private readonly BookingRepositoryInterface $bookings,
+        private readonly ?BookingLockInterface $lock = null,
     ) {
     }
 
@@ -36,6 +38,10 @@ final class BookRoomHandler implements CommandHandlerInterface
             new \DateTimeImmutable($command->checkOut),
         );
         $guests = new GuestCount($command->guests);
+
+        if ($this->lock !== null && !$this->lock->acquire($room->getId()->value, $command->checkIn, $command->checkOut)) {
+            throw new RoomNotAvailableException('Room is temporarily locked, please retry');
+        }
 
         if (!$room->isAvailable()) {
             throw new RoomNotAvailableException('Room is not available for booking');
@@ -68,6 +74,7 @@ final class BookRoomHandler implements CommandHandlerInterface
         );
 
         $this->bookings->save($booking);
+        $this->lock?->release($room->getId()->value, $command->checkIn, $command->checkOut);
 
         return $booking->getId();
     }

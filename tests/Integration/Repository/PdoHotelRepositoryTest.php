@@ -76,9 +76,17 @@ final class PdoHotelRepositoryTest extends IntegrationTestCase
         $this->assertContains($hotel2->getId()->value, $ids);
     }
 
-    public function testFindAllReturnsEmptyArrayWhenNone(): void
+    public function testFindAllOnlyReturnsHotelsInDatabase(): void
     {
-        $this->assertSame([], $this->repository->findAll());
+        $before = count($this->repository->findAll());
+
+        $hotel = $this->makeHotel('Solo Hotel');
+        $this->repository->save($hotel);
+
+        $all = $this->repository->findAll();
+        $this->assertCount($before + 1, $all);
+        $ids = array_map(fn (Hotel $h) => $h->getId()->value, $all);
+        $this->assertContains($hotel->getId()->value, $ids);
     }
 
     private function makeHotel(string $name = 'Grand Hotel'): Hotel
