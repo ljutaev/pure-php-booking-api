@@ -65,6 +65,11 @@ final class JsonResponse
         return new self(409, ['error' => ['code' => 'CONFLICT', 'message' => $message]]);
     }
 
+    public static function tooManyRequests(): self
+    {
+        return new self(429, ['error' => ['code' => 'TOO_MANY_REQUESTS', 'message' => 'Rate limit exceeded']]);
+    }
+
     public static function internalError(string $message = 'Internal server error'): self
     {
         return new self(500, ['error' => ['code' => 'INTERNAL_ERROR', 'message' => $message]]);
